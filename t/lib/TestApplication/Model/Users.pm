@@ -10,9 +10,20 @@ __PACKAGE__->model_accessors(user_contacts => 'TestApplication::Model::UserConta
 
 sub _fields_ {
     return (
-        id    => {type => 'number', default => TRUE, caption => 'User ID'},
-        name  => {type => 'text',   default => TRUE, length  => 63, caption => d_gettext('Name')},
-        email => {type => 'text',   length  => 255,  caption => d_gettext('EMail')},
+        id   => {type => 'number', default => TRUE, caption => 'User ID'},
+        name => {
+            type    => 'text',
+            default => TRUE,
+            length  => 63,
+            caption => d_gettext('Name'),
+            check   => sub {throw Exception::Data::FieldError 'Too short name' if length(shift) < 3}
+        },
+        email => {
+            type    => 'text',
+            length  => 255,
+            caption => d_gettext('EMail'),
+            check   => sub {throw Exception::Data::FieldError 'Invalid E-Mail' unless check_email(shift)}
+        },
         full_email => {
             type       => 'code',
             depends_on => [qw(name email)],
@@ -54,13 +65,18 @@ sub _fields_ {
 
 sub _pk_ {'id'}
 
-my @DATA = (
-    {id => 1, name => 'Test user 1', email => 'email1@example.com'},
-    {id => 2, name => 'Test user 2', email => 'email2@example.com'},
-    {id => 3, name => 'Test user 3', email => 'email3@example.com'},
-    {id => 4, name => 'Test user 4', email => 'email4@example.com'},
-    {id => 5, name => 'Test user 5', email => 'email5@example.com'},
-);
+my @DATA = ();
+
+sub _add {
+    my ($self, $data, %opts) = @_;
+
+    foreach (@$data) {
+        $_->{'id'} = @DATA + 1;
+        push(@DATA, $_);
+    }
+
+    return $data;
+}
 
 sub _get_data {
     my ($self, $fields, %opts) = @_;

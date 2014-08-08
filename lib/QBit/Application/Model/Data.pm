@@ -1,3 +1,24 @@
+package Exception::Data::FieldsErrors;
+
+use qbit::GetText;
+
+use base qw(Exception::BadArguments);
+
+sub as_string {
+    my ($self) = @_;
+
+    return
+        $self->SUPER::as_string() . '    '
+      . ngettext('Field error', 'Fields errors', scalar(keys(%{$self->{'error_fields'}})))
+      . ":\n        "
+      . join("\n        ", map {"$_: " . $self->{'error_fields'}{$_}->message()} sort keys(%{$self->{'error_fields'}}))
+      . "\n";
+}
+
+sub error_fields {
+    return {%{$_[0]->{'error_fields'}}};
+}
+
 package QBit::Application::Model::Data;
 
 use qbit;
@@ -7,7 +28,7 @@ use base qw(QBit::Application::Model);
 use QBit::Application::Model::Data::_::Field;
 use QBit::Application::Model::Data::_::Expression;
 
-__PACKAGE__->abstract_methods(qw(_get_data));
+__PACKAGE__->abstract_methods(qw(_add _get_data _edit));
 
 my $INVALID_FIELD_NAME_CHARS_RE = qr/[^a-zA-Z0-9_]/;
 
@@ -26,7 +47,7 @@ sub init {
 
         my $field_class = $opts->{'type'};
         $field_class = 'Self' unless defined($field_class);
-        $field_class = "QBit::Application::Model::Data::_::Field::$field_class";
+        $field_class = $self->_get_fields_namespace() . "::$field_class";
 
         require_class($field_class);
         $self->{'__FIELDS__'}{$name} = $field_class->new(%$opts, model => $self, name => $name);
@@ -64,6 +85,57 @@ sub process_data {
     $self->{'__FIELDS__'}{$_}->process($data, $need_fields->{$_}) foreach @fields_order;
 
     return TRUE;
+}
+
+sub get_rec_pk {
+    my ($self, $rec) = @_;
+
+    my $pk = $self->get_pk();
+
+    if (@$pk == 0) {
+        return undef;
+    } elsif (@$pk == 1) {
+        return $rec->{$pk->[0]};
+    } else {
+        return {map {$_ => $rec->{$_}} @$pk};
+    }
+}
+
+sub add {
+    my ($self, $data, %opts) = @_;
+
+    $data = [$data] if ref($data) ne 'ARRAY';
+
+    my @add_data;
+
+    foreach my $rec (@$data) {
+        my %add_data;
+        my %error_fields;
+        foreach my $field_name (keys(%{$self->{'__FIELDS__'}})) {
+            next unless $self->{'__FIELDS__'}{$field_name}->isa('QBit::Application::Model::Data::_::Field::Self');
+            try {
+                $self->{'__FIELDS__'}{$field_name}->check($rec->{$field_name});
+                $add_data{$field_name} = $rec->{$field_name};
+            }
+            catch Exception::Data::FieldError with {
+                $error_fields{$field_name} = $_[0];
+            };
+        }
+
+        throw Exception::Data::FieldsErrors ngettext(
+            'Invalid field "%s"',
+            'Invalid fields "%s"',
+            scalar(keys(%error_fields)),
+            join(', ', keys(%error_fields))
+          ),
+          error_fields => \%error_fields
+          if %error_fields;
+        push(@add_data, \%add_data);
+    }
+
+    my $added_data = $self->_add(\@add_data, %opts);
+
+    return [map {$self->get_rec_pk($_)} @$added_data];
 }
 
 sub get_all {
@@ -129,6 +201,8 @@ sub get_all {
 
     return \@res;
 }
+
+sub _get_fields_namespace {'QBit::Application::Model::Data::_::Field'}
 
 sub _get_expression {
     my ($self, $expression) = @_;

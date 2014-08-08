@@ -9,6 +9,23 @@ use qbit;
 BEGIN {use_ok('TestApplication')}
 my $app = new_ok('TestApplication');
 
+sub throws_ok(&$$) {
+    my ($code, $exception_type, $exception_text) = @_;
+
+    my $exception;
+    try {
+        $code->();
+    }
+    catch {
+        $exception = shift;
+    };
+
+    if (defined($exception)) {
+        isa_ok($exception, $exception_type);
+        is($exception->message(), $exception_text, 'Invalid exception message');
+    }
+}
+
 cmp_deeply(
     [sort map {$_->name} $app->users->get_model_fields()],
     [qw(additional_contacts email forced_dep full_email id name)],
@@ -28,6 +45,32 @@ cmp_deeply(
     [sort $app->users->{'__FIELDS__'}->{'forced_dep'}->get_all_depends()],
     [qw(dep_l2 dep_l3 email full_email id name)],
     'Checking expanding depends'
+);
+
+cmp_deeply(
+    $app->users->add(
+        [
+            {name => 'Test user 1', email => 'email1@example.com'},
+            {name => 'Test user 2', email => 'email2@example.com'},
+            {name => 'Test user 3', email => 'email3@example.com'},
+            {name => 'Test user 4', email => 'email4@example.com'},
+            {name => 'Test user 5', email => 'email5@example.com'},
+        ]
+    ),
+    [1, 2, 3, 4, 5],
+    'Checking method add'
+);
+
+throws_ok (
+    sub {$app->users->add({name => 'Test user', email => 'bad_email@@example.com'})},
+    'Exception::Data::FieldsErrors',
+    'Invalid field "email"'
+);
+
+throws_ok (
+    sub {$app->users->add({name => 'T', email => 'bad_email@@example.com'})},
+    'Exception::Data::FieldsErrors',
+    'Invalid fields "name, email"'
 );
 
 cmp_deeply(
@@ -74,8 +117,13 @@ cmp_deeply(
 
 cmp_deeply(
     $app->users->get_all(
-        fields =>
-          {id => '', t1 => \100500, t2 => ['+' => ['id', \10]], t3 => {NOT => ['id']}, t4 => [name => like => \'2']},
+        fields => {
+            id => '',
+            t1 => \100500,
+            t2 => ['+' => ['id', \10]],
+            t3 => {NOT  => ['id']},
+            t4 => [name => like => \'2']
+        },
         filter => [AND => [[id => '<=' => \3], [name => like => \'user']]]
     ),
     [

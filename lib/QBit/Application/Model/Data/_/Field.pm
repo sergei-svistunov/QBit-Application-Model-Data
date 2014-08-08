@@ -1,3 +1,7 @@
+package Exception::Data::FieldError;
+
+use base qw(Exception);
+
 package QBit::Application::Model::Data::_::Field;
 
 use qbit;
@@ -52,6 +56,14 @@ sub is_default {
     my ($self) = @_;
 
     return !!$self->{'default'};
+}
+
+sub check {
+    my ($self, $data) = @_;
+
+    return FALSE if defined($self->{'check'}) && !$self->{'check'}->($data);
+
+    return TRUE;
 }
 
 sub eval_operator {
