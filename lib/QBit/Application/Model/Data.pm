@@ -72,6 +72,12 @@ sub get_default_model_fields {
     map {$_->name} grep {$_->is_default()} @{$_[0]->get_model_fields()};
 }
 
+sub filter {
+    my ($self, $expression) = @_;
+
+    return $self->_get_expression($expression);
+}
+
 sub process_data {
     my ($self, $data, $need_fields) = @_;
 
@@ -101,12 +107,6 @@ sub get_rec_pk {
     }
 }
 
-sub add {
-    my ($self, $data, %opts) = @_;
-    
-    return $self->add_multi([$data], %opts)->[0];
-}
-
 sub add_multi {
     my ($self, $data, %opts) = @_;
 
@@ -130,7 +130,7 @@ sub add_multi {
             'Invalid field "%s"',
             'Invalid fields "%s"',
             scalar(keys(%error_fields)),
-            join(', ', keys(%error_fields))
+            join(', ', sort keys(%error_fields))
           ),
           error_fields => \%error_fields
           if %error_fields;
@@ -140,6 +140,12 @@ sub add_multi {
     my $added_data = $self->_add_multi(\@add_data, %opts);
 
     return [map {$self->get_rec_pk($_)} @$added_data];
+}
+
+sub add {
+    my ($self, $data, %opts) = @_;
+
+    return $self->add_multi([$data], %opts)->[0];
 }
 
 sub get_all {
@@ -281,6 +287,35 @@ sub _eval_field_operator {
       unless exists($self->{'__FIELDS__'}{$field_name});
 
     return $self->{'__FIELDS__'}{$field_name}->eval_operator($field_value, $operator, $value);
+}
+
+sub _pk2filter {
+    my ($self, $pk_data) = @_;
+
+    my $pk = $self->get_pk();
+    my $expression;
+
+    if (ref($pk_data) eq '' && @$pk == 1) {    # For simple pk's can use scalars
+        $expression = [$pk->[0] => '=' => \$pk_data];
+    } elsif (
+        ref($pk_data) eq 'HASH'
+        && !grep {                             # Are defined all primary keys?
+            !defined($pk_data->{$_})
+        } @$pk
+      )
+    {
+        $expression =
+          @$pk > 1 ? [AND => [map {[$_ => '=' => \$pk_data->{$_}]} @$pk]] : [$pk->[0] => '=' => \$pk_data->{$pk->[0]}];
+    } elsif (ref($pk_data) eq 'ARRAY' && @$pk_data == @$pk) {
+        $expression =
+          @$pk > 1
+          ? [AND => [map {[$pk->[$_] => '=' => \$pk_data->[$_]]} 0 .. @$pk - 1]]
+          : [$pk->[0] => '=' => \$pk_data->[0]];
+    } else {
+        throw Exception::BadArguments gettext('Invalid PK data. Model "%s", data: %s', ref($self), Dumper($pk_data));
+    }
+
+    return $self->filter($expression)->{'expression'};
 }
 
 TRUE;

@@ -70,7 +70,7 @@ throws_ok (
 throws_ok (
     sub {$app->users->add({name => 'T', email => 'bad_email@@example.com'})},
     'Exception::Data::FieldsErrors',
-    'Invalid fields "name, email"'
+    'Invalid fields "email, name"'
 );
 
 cmp_deeply(
@@ -133,5 +133,9 @@ cmp_deeply(
     ],
     'Checking expressions and filter'
 );
+
+is_deeply($app->users->_pk2filter(1), [id => '=' => \1], 'Checking _pk2filter (scalar)');
+is_deeply($app->users->_pk2filter({id => 1, name => 'test'}), [id => '=' => \1], 'Checking _pk2filter (hash)');
+is_deeply($app->users->_pk2filter([1]), [id => '=' => \1], 'Checking _pk2filter (array)');
 
 done_testing();
