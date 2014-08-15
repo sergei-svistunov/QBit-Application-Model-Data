@@ -67,7 +67,7 @@ sub _pk_ {'id'}
 
 my @DATA = ();
 
-sub _add {
+sub _add_multi {
     my ($self, $data, %opts) = @_;
 
     foreach (@$data) {

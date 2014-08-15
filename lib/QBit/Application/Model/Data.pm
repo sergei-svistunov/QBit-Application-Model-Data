@@ -28,7 +28,7 @@ use base qw(QBit::Application::Model);
 use QBit::Application::Model::Data::_::Field;
 use QBit::Application::Model::Data::_::Expression;
 
-__PACKAGE__->abstract_methods(qw(_add _get_data _edit));
+__PACKAGE__->abstract_methods(qw(_add_multi _get_data _edit));
 
 my $INVALID_FIELD_NAME_CHARS_RE = qr/[^a-zA-Z0-9_]/;
 
@@ -103,8 +103,12 @@ sub get_rec_pk {
 
 sub add {
     my ($self, $data, %opts) = @_;
+    
+    return $self->add_multi([$data], %opts)->[0];
+}
 
-    $data = [$data] if ref($data) ne 'ARRAY';
+sub add_multi {
+    my ($self, $data, %opts) = @_;
 
     my @add_data;
 
@@ -133,7 +137,7 @@ sub add {
         push(@add_data, \%add_data);
     }
 
-    my $added_data = $self->_add(\@add_data, %opts);
+    my $added_data = $self->_add_multi(\@add_data, %opts);
 
     return [map {$self->get_rec_pk($_)} @$added_data];
 }

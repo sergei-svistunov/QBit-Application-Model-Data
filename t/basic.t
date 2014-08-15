@@ -48,7 +48,7 @@ cmp_deeply(
 );
 
 cmp_deeply(
-    $app->users->add(
+    $app->users->add_multi(
         [
             {name => 'Test user 1', email => 'email1@example.com'},
             {name => 'Test user 2', email => 'email2@example.com'},
