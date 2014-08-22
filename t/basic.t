@@ -138,4 +138,15 @@ is_deeply($app->users->_pk2filter(1), [id => '=' => \1], 'Checking _pk2filter (s
 is_deeply($app->users->_pk2filter({id => 1, name => 'test'}), [id => '=' => \1], 'Checking _pk2filter (hash)');
 is_deeply($app->users->_pk2filter([1]), [id => '=' => \1], 'Checking _pk2filter (array)');
 
+is_deeply(
+    $app->multiple_pk->_pk2filter({id_part1 => 1, id_part2 => 2, name => 'test'}),
+    [AND => [[id_part1 => '=' => \1], [id_part2 => '=' => \2]]],
+    'Checking _pk2filter with multiple PK (hash)'
+);
+is_deeply(
+    $app->multiple_pk->_pk2filter([1, 2]),
+    [AND => [[id_part1 => '=' => \1], [id_part2 => '=' => \2]]],
+    'Checking _pk2filter with multiple PK (array)'
+);
+
 done_testing();
