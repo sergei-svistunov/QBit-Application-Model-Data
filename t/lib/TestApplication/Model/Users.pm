@@ -22,7 +22,10 @@ sub _fields_ {
             type    => 'text',
             length  => 255,
             caption => d_gettext('EMail'),
-            check   => sub {throw Exception::Data::FieldError 'Invalid E-Mail' unless check_email(shift)}
+            check   => sub {
+                throw Exception::Data::FieldError 'Invalid E-Mail' unless check_email(shift);
+            },
+            editing_rights => ['users_edit_email'],
         },
         full_email => {
             type       => 'code',

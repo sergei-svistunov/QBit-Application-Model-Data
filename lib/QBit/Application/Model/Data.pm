@@ -65,11 +65,15 @@ sub init {
 sub get_pk {$_[0]->{'__PK__'}}
 
 sub get_model_fields {
-    map {clone($_)} grep {$_->is_available} values($_[0]->{'__FIELDS__'});
+    grep {$_->is_available} values($_[0]->{'__FIELDS__'});
 }
 
 sub get_default_model_fields {
-    map {$_->name} grep {$_->is_default()} @{$_[0]->get_model_fields()};
+    map {$_->name} grep {$_->is_default()} $_[0]->get_model_fields();
+}
+
+sub get_editable_model_fields {
+    map {$_->name} grep {$_->is_editable()} $_[0]->get_model_fields();
 }
 
 sub filter {

@@ -42,6 +42,21 @@ cmp_deeply(
 }
 
 cmp_deeply(
+    [sort $app->users->get_editable_model_fields()],
+    [qw(id name)],
+    'Checking editable fields w/o right'
+);
+
+{
+    my $tmp_rights = $app->add_tmp_rights('users_edit_email');
+    cmp_deeply(
+        [sort $app->users->get_editable_model_fields()],
+        [qw(email id name)],
+        'Checking editable fields with right'
+    );
+}
+
+cmp_deeply(
     [sort $app->users->{'__FIELDS__'}->{'forced_dep'}->get_all_depends()],
     [qw(dep_l2 dep_l3 email full_email id name)],
     'Checking expanding depends'

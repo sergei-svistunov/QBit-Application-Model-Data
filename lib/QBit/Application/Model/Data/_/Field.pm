@@ -58,6 +58,18 @@ sub is_default {
     return !!$self->{'default'};
 }
 
+sub is_editable {
+    my ($self) = @_;
+
+    return FALSE unless $self->is_available();
+
+    return FALSE
+      if defined($self->{'editing_rights'})
+          && !$self->model->app->check_rights(@{$self->{'editing_rights'}});
+
+    return TRUE;
+}
+
 sub check {
     my ($self, $data) = @_;
 
