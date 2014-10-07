@@ -63,6 +63,8 @@ sub is_editable {
 
     return FALSE unless $self->is_available();
 
+    return FALSE if $self->{'readonly'};
+
     return FALSE
       if defined($self->{'editing_rights'})
           && !$self->model->app->check_rights(@{$self->{'editing_rights'}});

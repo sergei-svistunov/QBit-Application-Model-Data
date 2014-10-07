@@ -43,7 +43,7 @@ cmp_deeply(
 
 cmp_deeply(
     [sort $app->users->get_editable_model_fields()],
-    [qw(id name)],
+    [qw(name)],
     'Checking editable fields w/o right'
 );
 
@@ -51,7 +51,7 @@ cmp_deeply(
     my $tmp_rights = $app->add_tmp_rights('users_edit_email');
     cmp_deeply(
         [sort $app->users->get_editable_model_fields()],
-        [qw(email id name)],
+        [qw(email name)],
         'Checking editable fields with right'
     );
 }

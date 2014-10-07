@@ -10,7 +10,7 @@ __PACKAGE__->model_accessors(user_contacts => 'TestApplication::Model::UserConta
 
 sub _fields_ {
     return (
-        id   => {type => 'number', default => TRUE, caption => 'User ID'},
+        id   => {type => 'number', default => TRUE, caption => 'User ID', readonly => TRUE},
         name => {
             type    => 'text',
             default => TRUE,
