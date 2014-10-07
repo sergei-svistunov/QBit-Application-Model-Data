@@ -32,6 +32,8 @@ __PACKAGE__->abstract_methods(qw(_add_multi _get_data _edit));
 
 my $INVALID_FIELD_NAME_CHARS_RE = qr/[^a-zA-Z0-9_]/;
 
+sub _default_filter_ {return ()}
+
 sub init {
     my ($self) = @_;
 
@@ -202,9 +204,8 @@ sub get_all {
         }
     }
 
-    my @data =
-      $self->_get_data(\%self_fields,
-        (defined($opts{'filter'}) ? (filter => $self->_get_expression($opts{'filter'})) : ()));
+    my @filter = $self->_with_default_filter(defined($opts{'filter'}) ? $opts{'filter'} : ());
+    my @data = $self->_get_data(\%self_fields, (@filter ? (filter => $self->_get_expression($filter[0])) : ()));
 
     $self->process_data(\@data, \%gen_fields);
 
@@ -291,6 +292,22 @@ sub _eval_field_operator {
       unless exists($self->{'__FIELDS__'}{$field_name});
 
     return $self->{'__FIELDS__'}{$field_name}->eval_operator($field_value, $operator, $value);
+}
+
+sub _with_default_filter {
+    my ($self, @filter) = @_;
+
+    my @def_filter = $self->_default_filter_();
+
+    if (@filter && @def_filter) {
+        return ([AND => [$def_filter[0], $filter[0]]]);
+    } elsif (@filter) {
+        return ($filter[0]);
+    } elsif (@def_filter) {
+        return ($def_filter[0]);
+    } else {
+        return ();
+    }
 }
 
 sub _pk2filter {

@@ -9,6 +9,9 @@ use qbit;
 BEGIN {use_ok('TestApplication')}
 my $app = new_ok('TestApplication');
 
+$app->pre_run();
+$app->set_option(cur_user => {id => 0});
+
 sub throws_ok(&$$) {
     my ($code, $exception_type, $exception_text) = @_;
 
@@ -41,19 +44,12 @@ cmp_deeply(
     );
 }
 
-cmp_deeply(
-    [sort $app->users->get_editable_model_fields()],
-    [qw(name)],
-    'Checking editable fields w/o right'
-);
+cmp_deeply([sort $app->users->get_editable_model_fields()], [qw(name)], 'Checking editable fields w/o right');
 
 {
     my $tmp_rights = $app->add_tmp_rights('users_edit_email');
-    cmp_deeply(
-        [sort $app->users->get_editable_model_fields()],
-        [qw(email name)],
-        'Checking editable fields with right'
-    );
+    cmp_deeply([sort $app->users->get_editable_model_fields()], [qw(email name)],
+        'Checking editable fields with right');
 }
 
 cmp_deeply(
@@ -130,6 +126,22 @@ cmp_deeply(
     'Checking method get_all w/o expressions'
 );
 
+$app->set_option(cur_user => {id => 3});
+cmp_deeply(
+    $app->users->get_all(fields => [qw(name full_email forced_dep additional_contacts.phone additional_contacts.fax)]),
+    [
+        {
+            name                        => 'Test user 3',
+            full_email                  => 'Test user 3 <email3@example.com>',
+            forced_dep                  => '3|6917375fa3cdfb4fbd632a2b07797ec5',
+            'additional_contacts.phone' => '+0 111-11-13',
+            'additional_contacts.fax'   => '+0 211-11-13'
+        },
+    ],
+    'Checking method get_all with default_filter and w/o expressions'
+);
+$app->set_option(cur_user => {id => 0});
+
 cmp_deeply(
     $app->users->get_all(
         fields => {
@@ -163,5 +175,7 @@ is_deeply(
     [AND => [[id_part1 => '=' => \1], [id_part2 => '=' => \2]]],
     'Checking _pk2filter with multiple PK (array)'
 );
+
+$app->post_run();
 
 done_testing();

@@ -8,6 +8,16 @@ use Digest::MD5 qw(md5_hex);
 
 __PACKAGE__->model_accessors(user_contacts => 'TestApplication::Model::UserContacts');
 
+__PACKAGE__->register_rights(
+    [
+        {
+            name        => 'users',
+            description => d_gettext('Rights to manage users'),
+            rights      => {users_view_all => d_gettext('Right to view all users')}
+        }
+    ]
+);
+
 sub _fields_ {
     return (
         id   => {type => 'number', default => TRUE, caption => 'User ID', readonly => TRUE},
@@ -67,6 +77,12 @@ sub _fields_ {
 }
 
 sub _pk_ {'id'}
+
+sub _default_filter_ {
+    my ($self) = @_;
+
+    return $self->check_rights('users_view_all') ? () : [id => '=' => \$self->get_option(cur_user => {})->{'id'}];
+}
 
 my @DATA = ();
 
