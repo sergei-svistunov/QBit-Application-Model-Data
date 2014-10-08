@@ -75,7 +75,8 @@ sub is_editable {
 sub check {
     my ($self, $data) = @_;
 
-    return FALSE if defined($self->{'check'}) && !$self->{'check'}->($data);
+    throw Exception::Data::FieldError gettext('Unknown error')
+      if defined($self->{'check'}) && !$self->{'check'}->($data);
 
     return TRUE;
 }

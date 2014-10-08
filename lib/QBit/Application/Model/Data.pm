@@ -28,7 +28,7 @@ use base qw(QBit::Application::Model);
 use QBit::Application::Model::Data::_::Field;
 use QBit::Application::Model::Data::_::Expression;
 
-__PACKAGE__->abstract_methods(qw(_add_multi _get_data _edit));
+__PACKAGE__->abstract_methods(qw(_add_multi _get_data _edit _delete));
 
 my $INVALID_FIELD_NAME_CHARS_RE = qr/[^a-zA-Z0-9_]/;
 
@@ -67,15 +67,15 @@ sub init {
 sub get_pk {$_[0]->{'__PK__'}}
 
 sub get_model_fields {
-    grep {$_->is_available} values($_[0]->{'__FIELDS__'});
+    return grep {$_->is_available} values($_[0]->{'__FIELDS__'});
 }
 
 sub get_default_model_fields {
-    map {$_->name} grep {$_->is_default()} $_[0]->get_model_fields();
+    return map {$_->name} grep {$_->is_default()} $_[0]->get_model_fields();
 }
 
 sub get_editable_model_fields {
-    map {$_->name} grep {$_->is_editable()} $_[0]->get_model_fields();
+    return map {$_->name} grep {$_->is_editable()} $_[0]->get_model_fields();
 }
 
 sub filter {
@@ -143,15 +143,56 @@ sub add_multi {
         push(@add_data, \%add_data);
     }
 
-    my $added_data = $self->_add_multi(\@add_data, %opts);
-
-    return [map {$self->get_rec_pk($_)} @$added_data];
+    return [map {$self->get_rec_pk($_)} @{$self->_add_multi(\@add_data, %opts)}];
 }
 
 sub add {
     my ($self, $data, %opts) = @_;
 
     return $self->add_multi([$data], %opts)->[0];
+}
+
+sub edit {
+    my ($self, $pk_or_filter, $new_data, %opts) = @_;
+
+    my %editable_model_fields = map {$_ => TRUE} $self->get_editable_model_fields();
+
+    my %error_fields;
+    my %data;
+    foreach my $field_name (keys(%$new_data)) {
+        next unless exists($editable_model_fields{$field_name});
+        try {
+            $self->{'__FIELDS__'}{$field_name}->check($new_data->{$field_name});
+            $data{$field_name} = $new_data->{$field_name};
+        }
+        catch Exception::Data::FieldError with {
+            $error_fields{$field_name} = $_[0];
+        };
+    }
+
+    throw Exception::Data::FieldsErrors ngettext(
+        'Invalid field "%s"',
+        'Invalid fields "%s"',
+        scalar(keys(%error_fields)),
+        join(', ', sort keys(%error_fields))
+      ),
+      error_fields => \%error_fields
+      if %error_fields;
+
+    $pk_or_filter = $self->_pk2filter($pk_or_filter) unless blessed($pk_or_filter);
+    my @filter = $self->_with_default_filter($pk_or_filter);
+
+    return $self->_edit(\%data, %opts, (@filter ? (filter => $self->_get_expression($filter[0])) : ()));
+}
+
+sub delete {
+    my ($self, $pk_or_filter, %opts) = @_;
+
+    $pk_or_filter = $self->_pk2filter($pk_or_filter) unless blessed($pk_or_filter);
+    my @filter = $self->_with_default_filter($pk_or_filter);
+
+    return [map {$self->get_rec_pk($_)}
+          @{$self->_delete(%opts, (@filter ? (filter => $self->_get_expression($filter[0])) : ()))}];
 }
 
 sub get_all {
@@ -205,7 +246,7 @@ sub get_all {
     }
 
     my @filter = $self->_with_default_filter(defined($opts{'filter'}) ? $opts{'filter'} : ());
-    my @data = $self->_get_data(\%self_fields, (@filter ? (filter => $self->_get_expression($filter[0])) : ()));
+    my @data = $self->_get_data(\%self_fields, %opts, (@filter ? (filter => $self->_get_expression($filter[0])) : ()));
 
     $self->process_data(\@data, \%gen_fields);
 
@@ -217,10 +258,18 @@ sub get_all {
     return \@res;
 }
 
+sub get {
+    my ($self, $pk, %opts) = @_;
+
+    return $self->get_all(%opts, filter => $self->_pk2filter($pk))->[0];
+}
+
 sub _get_fields_namespace {'QBit::Application::Model::Data::_::Field'}
 
 sub _get_expression {
     my ($self, $expression) = @_;
+
+    return $expression if blessed($expression) && $expression->isa('QBit::Application::Model::Data::_::Expression');
 
     return QBit::Application::Model::Data::_::Expression->new(model => $self, expression => $expression);
 }

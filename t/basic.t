@@ -176,6 +176,37 @@ is_deeply(
     'Checking _pk2filter with multiple PK (array)'
 );
 
+$app->users->edit(3, {name => 'Test user 3e'});
+is_deeply($app->users->get(3, fields => ['name']), {name => 'Test user 3e'}, 'Check edit method');
+$app->users->edit(3, {name => 'Test user 3'});
+
+$app->set_option(cur_user => {id => 1});
+$app->users->edit(3, {name => 'Test user 3e'});
+$app->set_option(cur_user => {id => 0});
+is_deeply($app->users->get(3, fields => ['name']), {name => 'Test user 3'}, 'Check edit method and defailt filter');
+
+throws_ok (
+    sub {$app->users->edit(1, {name => 'Test user', email => 'bad_email@@example.com'})},
+    'Exception::Data::FieldsErrors',
+    'Invalid field "email"'
+);
+
+{
+    my $tmp_rights = $app->add_tmp_rights('users_edit_email');
+    throws_ok (
+        sub {$app->users->edit(1, {name => 'T', email => 'bad_email@@example.com'})},
+        'Exception::Data::FieldsErrors',
+        'Invalid fields "email, name"'
+    );
+}
+
+is_deeply($app->users->delete(5), [5], 'Check return value of delete method');
+is_deeply(
+    $app->users->get_all(fields => ['id']),
+    [{id => 1}, {id => 2}, {id => 3}, {id => 4}],
+    'Check data after delete'
+);
+
 $app->post_run();
 
 done_testing();

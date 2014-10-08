@@ -26,7 +26,10 @@ sub _fields_ {
             default => TRUE,
             length  => 63,
             caption => d_gettext('Name'),
-            check   => sub {throw Exception::Data::FieldError 'Too short name' if length(shift) < 3}
+            check   => sub {
+                throw Exception::Data::FieldError 'Too short name' if length(shift) < 3;
+                return TRUE;
+              }
         },
         email => {
             type    => 'text',
@@ -34,6 +37,7 @@ sub _fields_ {
             caption => d_gettext('EMail'),
             check   => sub {
                 throw Exception::Data::FieldError 'Invalid E-Mail' unless check_email(shift);
+                return TRUE;
             },
             editing_rights => ['users_edit_email'],
         },
@@ -97,11 +101,36 @@ sub _add_multi {
     return $data;
 }
 
+sub _edit {
+    my ($self, $new_data, %opts) = @_;
+
+    my @result;
+
+    foreach (@DATA) {
+        next if exists($opts{'filter'}) && !$opts{'filter'}->eval($_);
+        push_hs($_, $new_data);
+        push(@result, $_);
+    }
+
+    return \@result;
+}
+
 sub _get_data {
     my ($self, $fields, %opts) = @_;
 
     return map {+{hash_transform($_, [keys(%$fields)])}}
       grep {exists($opts{'filter'}) && $opts{'filter'}->eval($_) || !exists($opts{'filter'})} @DATA;
+}
+
+sub _delete {
+    my ($self, %opts) = @_;
+
+    my @deleted;
+    @DATA = grep {
+        exists($opts{'filter'}) && $opts{'filter'}->eval($_) ? do {push(@deleted, $_); ()} : $_
+    } @DATA;
+
+    return \@deleted;
 }
 
 TRUE;
