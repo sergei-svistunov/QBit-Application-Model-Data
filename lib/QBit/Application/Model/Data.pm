@@ -39,13 +39,17 @@ sub init {
 
     $self->SUPER::init();
 
-    $self->{'__FIELDS__'} = {};
+    $self->{'__FIELDS__'}       = {};
+    $self->{'__FIELDS_ORDER__'} = [];
 
-    my %fields = $self->_fields_();
+    my @fields = $self->_fields_();
 
-    while (my ($name, $opts) = each(%fields)) {
+    while (@fields) {
+        my ($name, $opts) = splice(@fields, 0, 2);
         throw Exception::BadArguments gettext('Invalid name "%s" (%s)', $name, ref($self))
           if $name =~ /$INVALID_FIELD_NAME_CHARS_RE/;
+
+        push(@{$self->{'__FIELDS_ORDER__'}}, $name);
 
         my $field_class = $opts->{'type'};
         $field_class = 'Self' unless defined($field_class);
@@ -63,7 +67,6 @@ sub init {
     $self->{'__FIELDS_TREE_LEVEL__'} = {};
     $self->{'__FIELDS_TREE_LEVEL__'}{$_} = $self->_fields_tree_level($_, 0) foreach keys(%{$self->{'__FIELDS__'}});
 }
-
 sub get_pk {$_[0]->{'__PK__'}}
 
 sub get_model_fields {
