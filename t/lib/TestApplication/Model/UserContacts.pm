@@ -4,11 +4,18 @@ use qbit;
 
 use base qw(QBit::Application::Model::Data);
 
+__PACKAGE__->model_accessors(users => 'TestApplication::Model::Users');
+
 sub _fields_ {
     return (
         id    => {type => 'number', caption => 'User ID'},
         phone => {type => 'text',   length  => 10, caption => d_gettext('Phone')},
         fax   => {type => 'text',   length  => 10, caption => d_gettext('Fax')},
+        user => {
+            type        => 'ext_model',
+            from        => 'users',
+            join_fields => [['id'] => ['id']],
+        },
     );
 }
 
